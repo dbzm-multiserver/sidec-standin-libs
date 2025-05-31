@@ -1,0 +1,16 @@
+# Отключаем автоматическое создание комментария CODEOWNERS к pull request
+CODEOWNERS.toplevel.create_pull_request_comment disable
+
+# Определяем ветки, по которым применяются правила
+CODEOWNERS.destination_branch_pattern master
+CODEOWNERS.destination_branch_pattern develop
+CODEOWNERS.destination_branch_pattern release/*
+
+# Определяем source ветки, для которых не применяются правила
+CODEOWNERS.source_branch_exclusion_pattern release/*
+
+# Определяем группы и состав их участников
+@@@CoreTeam Grebenyuk Sergey, Ivanov Sergey, Pustovetov Andrey, Silantiev Georgiy
+
+# Изменение любого файла влечет добавление указанной группы в список ревьюверов
+* @@CoreTeam
