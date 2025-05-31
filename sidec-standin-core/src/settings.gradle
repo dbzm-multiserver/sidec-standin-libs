@@ -1,0 +1,6 @@
+pluginManagement {
+    repsitories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
