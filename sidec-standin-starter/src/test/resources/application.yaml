@@ -1,0 +1,38 @@
+spring:
+  datasource: &datasource
+    url: ${DATABASE_URL_MAIN}
+    driverClassName: org.postgresql.Driver
+    username: postgres
+    password: postgres
+    hikari: &hikari
+      minimum-idle: 10
+      maximum-pool-size: 30
+      idle-timeout: 5000
+      max-lifetime: 10000
+
+sidec:
+  switchover:
+    enabled: true
+      #signal-request-timeout-ms: 1000
+      #app-name: sidec-switchover
+      #signal-topic: sidec.app_signal
+      #poll-timeout-ms: 1000
+      #watcher:
+      #delay-ms: 1000
+      #connection-close-await-ms: 1000
+      #retry:
+      #max-attempts: 120
+    #back-off-interval-ms: 1000
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+  datasource:
+    main:
+      url: ${DATABASE_URL_MAIN}
+      driverClassName: org.postgresql.Driver
+      username: postgres
+      password: postgres
+    standIn:
+      url: ${DATABASE_URL_STANDIN}
+      driverClassName: org.postgresql.Driver
+      username: postgres
+      password: postgres
