@@ -3,12 +3,13 @@ plugins {
     id("org.liquibase.gradle") version "2.1.1"
 }
 
-java.sourceCompatibility = JavaVersion.VERSION_21
-java.targetCompatibility = JavaVersion.VERSION_21
 group = "ru.sbrf.sidec"
-version = ""
+version = "01.000.00"
 
 repositories {
     mavenCentral()
-    gradlePluginPortal()
+}
+
+dependencies {
+    testImplementation("org.postgresql:postgresql:$postgresql_version")
 }

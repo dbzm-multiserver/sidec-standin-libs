@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'maven-publish'
+    id("org.springframework.boot")
 }
 
 repositories {
@@ -49,6 +50,12 @@ description = "Sidec application standin core lib"
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks {
+    bootJar { // Теперь bootJar доступен
+        enabled = true
+    }
 }
 
 tasks.jar {

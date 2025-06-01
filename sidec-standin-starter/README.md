@@ -2,7 +2,7 @@
 
 ## [CHANGELOG](../CHANGELOG.md)
 ## [Информация для формирования PR](../CONTRIBUTING.md)
-## [Метрики](./METRICS.md)
+## [Метрики](METRICS.md)
 
 
 ## Принцип работы
