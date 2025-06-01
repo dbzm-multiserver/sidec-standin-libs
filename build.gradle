@@ -1,12 +1,14 @@
 plugins {
     id 'java'
+    id("org.liquibase.gradle") version "2.1.1"
 }
+
+java.sourceCompatibility = JavaVersion.VERSION_21
+java.targetCompatibility = JavaVersion.VERSION_21
+group = "ru.sbrf.sidec"
+version = ""
 
 repositories {
-}
-
-dependencies {
-}
-
-java {
+    mavenCentral()
+    gradlePluginPortal()
 }

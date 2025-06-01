@@ -1,8 +1,6 @@
 plugins {
     id 'java'
     id 'maven-publish'
-    id 'org.springframework.boot' version '3.3.2'
-    id 'io.spring.dependency-management' version '1.1.6'
 }
 
 repositories {
@@ -16,36 +14,41 @@ dependencies {
         implementation "com.fasterxml.jackson.core:jackson-databind:$jackson_version"
         implementation "com.fasterxml.jackson.core:jackson-core:$jackson_version"
         implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jackson_version"
+        implementation "ch.qos.logback:logback-classic:$logback_version"
+        implementation "ch.qos.logback:logback-core:$logback_version"
+        implementation "org.slf4j:slf4j-api:$slf4j_version"
     }
-    implementation project(":sidec-standin-core")
-    implementation("org.springframework.boot:spring-boot-starter")
-    implementation("org.springframework.boot:spring-boot-starter-jdbc")
-    implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.kafka:spring-kafka")
-    implementation "org.apache.kafka:kafka-clients"
+    compileOnly "ch.qos.logback:logback-classic"
+    compileOnly "ch.qos.logback:logback-core"
+
+    implementation  "org.apache.kafka:kafka-clients"
     implementation "com.fasterxml.jackson.core:jackson-databind"
     implementation "com.fasterxml.jackson.core:jackson-core"
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
+    implementation "org.slf4j:slf4j-api"
 
-    testImplementation("org.springframework.boot:spring-boot-starter-web")
-    testImplementation("org.springframework.boot:spring-boot-starter-data-jdbc")
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.postgresql:postgresql:$postgresql_version")
     testImplementation("org.awaitility:awaitility:$awaitility_version")
     testImplementation("org.testcontainers:testcontainers:$testcontainers_version")
     testImplementation("org.testcontainers:junit-jupiter:$testcontainers_version")
-    testImplementation("org.testcontainers:postgresql:$testcontainers_version")
     testImplementation("org.testcontainers:kafka:$testcontainers_version")
     testImplementation("org.assertj:assertj-core:$assertj_core_version")
+    testImplementation("org.slf4j:slf4j-reload4j:$slf4j_version")
+    testImplementation("org.mockito:mockito-junit-jupiter:$mockito_junit_version")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:$junit_version")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:$junit_version")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junit_version")
+
+
 }
 
 group = "ru.sbrf.sidec"
 version = "$sidec_standin_starter_version"
-description = "Sidec application standin spring6 starter"
+description = "Sidec application standin core lib"
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 tasks.jar {
