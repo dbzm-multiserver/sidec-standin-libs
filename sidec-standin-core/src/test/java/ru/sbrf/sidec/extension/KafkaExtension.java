@@ -4,6 +4,7 @@ import ru.sbrf.sidec.containers.SidecKafkaContainer;
 import ru.sbrf.sidec.containers.TestcontainersGlobalConfig;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -16,14 +17,18 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
+import ru.sbrf.sidec.containers.SidecKafkaContainer;
+import ru.sbrf.sidec.containers.TestcontainersGlobalConfig;
 import ru.sbrf.sidec.kafka.domain.SignalRequest;
 import ru.sbrf.sidec.kafka.serde.AppSignalSerializer;
 
+import java.util.List;
 import java.util.Properties;
 
 import static org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG;
+import static ru.sbrf.sidec.config.SwitchoverConfig.SWITCHOVER_SIGNAL_TOPIC_NAME_DEFAULT;
 
 public class KafkaExtension implements BeforeAllCallback {
     private final Logger log = LoggerFactory.getLogger(KafkaExtension.class);
@@ -46,6 +51,7 @@ public class KafkaExtension implements BeforeAllCallback {
             SidecKafkaContainer.createKafkaUiContainer(zookeeperContainer, kafkaContainer).start();
         }
         System.setProperty(KAFKA_BOOTSTRAP_SERVERS, getKafkaBrokers(kafkaContainer, "127.0.0.1"));
+        adminClient().createTopics(List.of(new NewTopic(SWITCHOVER_SIGNAL_TOPIC_NAME_DEFAULT, 1, (short) 1)));
     }
 
     private static String getKafkaBrokers(KafkaContainer kafkaContainer, String host) {
