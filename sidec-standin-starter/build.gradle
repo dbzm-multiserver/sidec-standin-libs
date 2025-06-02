@@ -27,6 +27,7 @@ dependencies {
     implementation "com.fasterxml.jackson.core:jackson-core"
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
 
+    testImplementation project(":sidec-standin-core")
     testImplementation("org.springframework.boot:spring-boot-starter-web")
     testImplementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     testImplementation("org.springframework.boot:spring-boot-starter-test")

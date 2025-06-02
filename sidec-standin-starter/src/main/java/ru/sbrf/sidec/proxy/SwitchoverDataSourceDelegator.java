@@ -85,7 +85,7 @@ public class SwitchoverDataSourceDelegator implements DataSource {
         changeTopicCleanUpPolicy();
         watcher = new DataSourceConnectionWatcher(config);
         watcher.watch();
-        signalPartition = new TopicPartition(config.getSignalKafkaTopic(), 0);
+        signalPartition = new TopicPartition(config.getSignalTopic(), 0);
         signalPartitionList = List.of(signalPartition);
         initializeDatasource(bean);
         this.appName = config.getAppName();
@@ -103,7 +103,7 @@ public class SwitchoverDataSourceDelegator implements DataSource {
     }
 
     private void changeTopicCleanUpPolicy() {
-        ConfigResource configResource = new ConfigResource(ConfigResource.Type.TOPIC, config.getSignalKafkaTopic());
+        ConfigResource configResource = new ConfigResource(ConfigResource.Type.TOPIC, config.getSignalTopic());
         ConfigEntry configEntry;
         try {
             Map<ConfigResource, Config> configResourceConfigMap = adminClient.describeConfigs(List.of(configResource))
@@ -197,9 +197,9 @@ public class SwitchoverDataSourceDelegator implements DataSource {
             if (Objects.equals(latestOffset, 0L)) {
                 break;
             }
-            var poll = consumer.poll(Duration.ofMillis(config.getPollTimeoutMs()));
+            var poll = consumer.poll(Duration.ofMillis(config.getPollTimeout().toMillis()));
             if (poll.isEmpty()) {
-                OptionalLong optionalLong = consumer.currentLag(new TopicPartition(config.getSignalKafkaTopic(), 0));
+                OptionalLong optionalLong = consumer.currentLag(new TopicPartition(config.getSignalTopic(), 0));
                 boolean isLagPresent = optionalLong.isPresent();
                 if (isLagPresent) {
                     long lag = optionalLong.getAsLong();
@@ -244,7 +244,7 @@ public class SwitchoverDataSourceDelegator implements DataSource {
 
     private void initializeKafkaConsumer() {
         LOGGER.info("There is no switchover consumer. Creating a consumer");
-        consumer = consumerFactory.createConsumer(List.of(config.getSignalKafkaTopic()));
+        consumer = consumerFactory.createConsumer(List.of(config.getSignalTopic()));
         appUid = consumer.groupMetadata().groupId();
         LOGGER.info("App uid: {}", appUid);
     }
@@ -276,7 +276,7 @@ public class SwitchoverDataSourceDelegator implements DataSource {
                 initializeKafkaConsumer();
             }
             //TODO тут мультитред сделать
-            var poll = consumer.poll(Duration.ofMillis(config.getPollTimeoutMs()));
+            var poll = consumer.poll(Duration.ofMillis(config.getPollTimeout().toMillis()));
             if (!poll.isEmpty()) {
                 try {
                     LOGGER.info("Switchover received a message from the alarm topic. Processing {} messages.", poll.count());

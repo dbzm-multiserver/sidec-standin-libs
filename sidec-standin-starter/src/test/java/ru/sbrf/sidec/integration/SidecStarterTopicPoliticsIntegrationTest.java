@@ -28,9 +28,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertTrue;
 import static ru.sbrf.sidec.config.SidecConfig.*;
-import static ru.sbrf.sidec.config.SwitchoverConfig.SWITCHOVER_SIGNAL_TOPIC_NAME_DEFAULT;
 import static ru.sbrf.sidec.utils.AwaitilityUtil.defaultAwait;
 import static ru.sbrf.sidec.utils.KafkaUtil.clearConsumerGroups;
 
@@ -77,7 +75,7 @@ public class SidecStarterTopicPoliticsIntegrationTest {
     public void starter_change_topic_cleanup_policy_and_start_with_exception_when_signal_topic_is_empty() throws ExecutionException, InterruptedException {
         AdminClient adminClient = config.getKafkaConfig().getAdminClient();
         ConfigEntry configEntry = adminClient.describeConfigs(
-                        List.of(new ConfigResource(ConfigResource.Type.TOPIC, SWITCHOVER_SIGNAL_TOPIC_NAME_DEFAULT))
+                        List.of(new ConfigResource(ConfigResource.Type.TOPIC, SIGNAL_TOPIC_NAME_DEFAULT))
                 )
                 .all().get()
                 .values().stream().findFirst().get()

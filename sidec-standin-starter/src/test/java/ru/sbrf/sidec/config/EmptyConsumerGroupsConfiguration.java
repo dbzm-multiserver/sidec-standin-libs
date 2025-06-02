@@ -17,9 +17,9 @@ public class EmptyConsumerGroupsConfiguration {
     @PostConstruct
     public void createAdditionalConsumerGroups() {
         this.consumerFactory = config.getKafkaConfig().getConsumerFactory();
-        createAdditionalConsumerGroup(List.of(config.getSignalKafkaTopic()), CONSUMER_GROUP_ID_PREFIX + "test1");
-        createAdditionalConsumerGroup(List.of(config.getSignalKafkaTopic()), CONSUMER_GROUP_ID_PREFIX + "test2");
-        createAdditionalConsumerGroup(List.of(config.getSignalKafkaTopic()), "test3");
+        createAdditionalConsumerGroup(List.of(config.getSignalTopic()), CONSUMER_GROUP_ID_PREFIX + "test1");
+        createAdditionalConsumerGroup(List.of(config.getSignalTopic()), CONSUMER_GROUP_ID_PREFIX + "test2");
+        createAdditionalConsumerGroup(List.of(config.getSignalTopic()), "test3");
         createAdditionalConsumerGroup(List.of("other-topic"), CONSUMER_GROUP_ID_PREFIX + "test4");
     }
 

@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
+import org.springframework.jdbc.datasource.lookup.JndiDataSourceLookup;
 import ru.sbrf.sidec.config.SwitchoverDataSourceConfiguration;
 
 import javax.sql.DataSource;

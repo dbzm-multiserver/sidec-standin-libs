@@ -28,7 +28,7 @@ import java.util.Properties;
 import static org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG;
-import static ru.sbrf.sidec.config.SwitchoverConfig.SWITCHOVER_SIGNAL_TOPIC_NAME_DEFAULT;
+import static ru.sbrf.sidec.config.SidecConfig.SIGNAL_TOPIC_NAME_DEFAULT;
 
 public class KafkaExtension implements BeforeAllCallback {
     private final Logger log = LoggerFactory.getLogger(KafkaExtension.class);
@@ -51,7 +51,7 @@ public class KafkaExtension implements BeforeAllCallback {
             SidecKafkaContainer.createKafkaUiContainer(zookeeperContainer, kafkaContainer).start();
         }
         System.setProperty(KAFKA_BOOTSTRAP_SERVERS, getKafkaBrokers(kafkaContainer, "127.0.0.1"));
-        adminClient().createTopics(List.of(new NewTopic(SWITCHOVER_SIGNAL_TOPIC_NAME_DEFAULT, 1, (short) 1)));
+        adminClient().createTopics(List.of(new NewTopic(SIGNAL_TOPIC_NAME_DEFAULT, 1, (short) 1)));
     }
 
     private static String getKafkaBrokers(KafkaContainer kafkaContainer, String host) {
