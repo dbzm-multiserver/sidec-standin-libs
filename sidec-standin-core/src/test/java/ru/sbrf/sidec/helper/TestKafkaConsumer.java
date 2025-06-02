@@ -1,4 +1,4 @@
-package ru.sbrf.sidec.utils;
+package ru.sbrf.sidec.helper;
 
 //import org.apache.avro.generic.GenericRecord;
 
@@ -9,11 +9,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.Lock;
@@ -21,9 +17,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static java.util.Optional.ofNullable;
 import static ru.sbrf.sidec.extension.KafkaExtension.KAFKA_BOOTSTRAP_SERVERS;
-//import static ru.sbrf.sidec.extension.KafkaExtension.TEST_BOOTSTRAP_SERVERS_PROPERTY_NAME;
+import static java.util.Optional.ofNullable;
 
 //TODO сделать параметризированный класс для тестов
 public class TestKafkaConsumer {
@@ -42,7 +37,7 @@ public class TestKafkaConsumer {
     private final static Lock lock = new ReentrantLock();
 
     public static void initKafkaConsumer(List<String> topics) {
-        var bootstrapServers = System.getProperty(KAFKA_BOOTSTRAP_SERVERS);
+        String bootstrapServers = System.getProperty(KAFKA_BOOTSTRAP_SERVERS);
         Properties properties = new Properties();
         properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         properties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
@@ -50,13 +45,13 @@ public class TestKafkaConsumer {
         properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(properties);
-        var newTopics = topics.stream().filter(x -> !subscribedTopics.containsKey(x)).collect(Collectors.toList());
+        List<String> newTopics = topics.stream().filter(x -> !subscribedTopics.containsKey(x)).collect(Collectors.toList());
         if (newTopics.isEmpty()) {
             return;
         }
         consumer.subscribe(newTopics);
 //      assignedTopics: consumer.listTopics();
-        var kafkaPolling = new Thread(() -> {
+        Thread kafkaPolling = new Thread(() -> {
             boolean workInProgress = true;
             while (workInProgress) {
                 try {
@@ -85,7 +80,7 @@ public class TestKafkaConsumer {
         ofNullable(kafkaData.get(record.topic()))
                 .map(x -> x.add(record.value()))
                 .orElseGet(() -> {
-                    var list = new ArrayList<String>();
+                    List<String> list = new ArrayList<String>();
                     list.add(record.value());
                     kafkaData.put(record.topic(), list);
                     return true;
@@ -96,7 +91,7 @@ public class TestKafkaConsumer {
         ofNullable(partitionedKafkaData.get(record.topic() + "." + record.partition()))
                 .map(x -> x.add(record.value()))
                 .orElseGet(() -> {
-                    var list = new ArrayList<String>();
+                    List<String> list = new ArrayList<String>();
                     list.add(record.value());
                     partitionedKafkaData.put(record.topic() + "." + record.partition(), list);
                     return true;
@@ -107,7 +102,7 @@ public class TestKafkaConsumer {
         ofNullable(rawData.get(record.topic()))
                 .map(x -> x.add(record))
                 .orElseGet(() -> {
-                    var list = new ArrayList<ConsumerRecord<String, String>>();
+                    List<ConsumerRecord<String, String>> list = new ArrayList<ConsumerRecord<String, String>>();
                     list.add(record);
                     rawData.put(record.topic(), list);
                     return true;
@@ -118,7 +113,7 @@ public class TestKafkaConsumer {
         ofNullable(partitionedRawData.get(record.topic() + "." + record.partition()))
                 .map(x -> x.add(record))
                 .orElseGet(() -> {
-                    var list = new ArrayList<ConsumerRecord<String, String>>();
+                    List<ConsumerRecord<String, String>> list = new ArrayList<ConsumerRecord<String, String>>();
                     list.add(record);
                     partitionedRawData.put(record.topic() + "." + record.partition(), list);
                     return true;
@@ -177,7 +172,7 @@ public class TestKafkaConsumer {
     }
 
     public static void stopConsumer() {
-        for (var kafkaPolling : kafkaPollingMap.values()) {
+        for (Thread kafkaPolling : kafkaPollingMap.values()) {
             try {
                 if (kafkaPolling != null) {
                     kafkaPolling.interrupt();
@@ -187,41 +182,6 @@ public class TestKafkaConsumer {
             }
         }
     }
-
-   /* public static int getLastSchemaPackageReferenceId(String schemaPackageTopic, String tableName) {
-        if (!isSubscribed(schemaPackageTopic)) {
-            throw new IllegalStateException("Not subscribed to schema package topic: " + schemaPackageTopic);
-        }
-        var parts = tableName.split("\\.");
-        var schema = parts[0];
-        var table = parts[1];
-        var data = getKafkaData(schemaPackageTopic);
-        for (int i = data.size() - 1; i >= 0; i--) {
-            var x = Objects.requireNonNull(ObjectMapperUtil.readValue(data.get(i), SchemaPackageDto.class));
-            if (x.getSchemaName().equals(schema) && x.getTableName().equals(table)) {
-                return x.getReferenceId();
-            }
-        }
-        return -1;
-    }*/
-
-    private static boolean isSubscribed(String topic) {
-        return subscribedTopics.containsKey(topic);
-    }
-
-  /*  public static Map<String, Set<String>> getSchemaPackageTablesAndColumns(String schemaPackageTopic, int referenceId) {
-        return doInLock(() -> getKafkaData(schemaPackageTopic)
-                .stream()
-                .map(x -> ObjectMapperUtil.readValue(x, SchemaPackageDto.class))
-                .filter(Objects::nonNull)
-                .filter(x -> x.getReferenceId().equals(referenceId))
-                .collect(
-                        Collectors.toMap(
-                                x -> x.getSchemaName() + "." + x.getTableName(),
-                                x -> x.getColumns().stream().map(SchemaPackageColumnDto::columnName).collect(Collectors.toSet())
-                        )
-                ));
-    }*/
 
     private static <T> T doInLock(Supplier<T> fn) {
         lock.lock();
