@@ -40,7 +40,7 @@ dependencies {
     testImplementation("org.assertj:assertj-core:$assertj_core_version")
 }
 
-group = "ru.sbrf.sidec"
+group = "io.github.dbzm-multiserver-oss"
 version = "$sidec_standin_starter_version"
 description = "Sidec application standin spring6 starter"
 

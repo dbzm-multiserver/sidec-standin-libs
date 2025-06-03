@@ -43,7 +43,7 @@ dependencies {
 
 }
 
-group = "ru.sbrf.sidec"
+group = "io.github.dbzm-multiserver-oss"
 version = "$sidec_standin_starter_version"
 description = "Sidec application standin core lib"
 
