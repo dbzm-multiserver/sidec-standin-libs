@@ -64,8 +64,12 @@ publishing {
 }
 
 signing {
-    def signingKey = findProperty("signingKey")
-    def signingPassword = findProperty("signingPassword")
-    useInMemoryPgpKeys(signingKey, signingPassword)
-    sign publishing.publications.mavenJava
+    def signingKey = providers.environmentVariable("SIGNING_KEY").orNull
+    def signingPassword = providers.environmentVariable("SIGNING_PASSWORD").orNull
+    if (signingKey != null && signingPassword != null) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+        sign(publishing.publications.mavenJava)
+    } else {
+        logger.warn("Signing skipped: missing environment variables", signiKey == null, signingPassword == null)
+    }
 }
