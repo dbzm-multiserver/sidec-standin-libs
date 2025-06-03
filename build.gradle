@@ -12,7 +12,7 @@ java {
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            artifactId = 'standin-starter' // Замените на реальный ID
+            artifactId = 'standin-starter'
             from components.java
             versionMapping {
                 usage('java-api') {
