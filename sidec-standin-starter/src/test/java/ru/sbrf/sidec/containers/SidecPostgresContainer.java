@@ -5,7 +5,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 public class SidecPostgresContainer {
-    public static final DockerImageName IMAGE = DockerImageName.parse("base/docker.io/postgres:13.15-alpine3.20")
+    public static final DockerImageName IMAGE = DockerImageName.parse("postgres:13.15-alpine3.20")
             .asCompatibleSubstituteFor("postgres");
     public static final String NETWORK_ALIAS = "postgres";
     public static final int INTERNAL_PORT = PostgreSQLContainer.POSTGRESQL_PORT;

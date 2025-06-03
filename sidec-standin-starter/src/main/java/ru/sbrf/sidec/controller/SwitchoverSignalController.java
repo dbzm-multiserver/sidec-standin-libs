@@ -45,9 +45,9 @@ public class SwitchoverSignalController {
         SwitchoverRequest request = readValue(rawRequest, SwitchoverRequest.class);
         LOGGER.info("A request was received to switch the mode via an HTTP request. Request Body: {}", request);
         try {
-            var partitionInfos = producer.partitionsFor(config.getSignalKafkaTopic());
+            var partitionInfos = producer.partitionsFor(config.getSignalTopic());
             if (partitionInfos.size() != 1) {
-                throw new SwitchoverException("The number of partitions in the topic " + config.getSignalKafkaTopic() + " should be equal to 1");
+                throw new SwitchoverException("The number of partitions in the topic " + config.getSignalTopic() + " should be equal to 1");
             }
             SignalStatus status = FORCE == request.getSwitchType() ? SignalStatus.READY_TO_SWITCH : SignalStatus.STARTED;
             SignalRequest signal = new SignalRequest(
@@ -59,8 +59,8 @@ public class SwitchoverSignalController {
                     OffsetDateTime.now(),
                     request.getSwitchType()
             );
-            var record = new ProducerRecord<>(config.getSignalKafkaTopic(), "sidec.app_signal.status", signal);
-            producer.send(record).get(config.getSignalRequestTimeoutMs(), TimeUnit.MILLISECONDS);
+            var record = new ProducerRecord<>(config.getSignalTopic(), "sidec.app_signal.status", signal);
+            producer.send(record).get(config.getSignalRequestTimeout().toMillis(), TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             LOGGER.warn("Error during send signal to kafka with body = '{}'", request, e);
             return ResponseEntity.internalServerError()

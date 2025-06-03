@@ -9,11 +9,11 @@ import ru.sbrf.sidec.util.SystemUtil;
 import java.util.ArrayList;
 
 public class SidecKafkaContainer {
-    public static final DockerImageName IMAGE = DockerImageName.parse("base/docker.io/confluentinc/cp-kafka:6.2.0")
+    public static final DockerImageName IMAGE = DockerImageName.parse("confluentinc/cp-kafka:6.2.0")
             .asCompatibleSubstituteFor("confluentinc/cp-kafka");
     public static final String NETWORK_ALIAS = "kafka";
     public static final String KAFKA_BROKER_ID = "1";
-    public static final DockerImageName ZOOKEEPER_IMAGE = DockerImageName.parse("base/docker.io/confluentinc/cp-zookeeper:7.0.1")
+    public static final DockerImageName ZOOKEEPER_IMAGE = DockerImageName.parse("confluentinc/cp-zookeeper:7.0.1")
             .asCompatibleSubstituteFor("confluentinc/cp-zookeeper");
     /**
      * Используется для общения внутри докера. Нужен для дополнительных инструментов, типа kafka-ui.

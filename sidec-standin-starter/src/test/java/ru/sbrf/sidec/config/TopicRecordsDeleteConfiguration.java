@@ -36,7 +36,7 @@ public class TopicRecordsDeleteConfiguration {
         LOGGER.info("Start creating empty topic with offsets greater then zero");
         adminClient = config.getKafkaConfig()
                 .getAdminClient();
-        configResource = new ConfigResource(ConfigResource.Type.TOPIC, config.getSignalKafkaTopic());
+        configResource = new ConfigResource(ConfigResource.Type.TOPIC, config.getSignalTopic());
 
         Producer<String, SignalRequest> producer = config.getKafkaConfig().getProducerFactory().createProducer();
         producer.send(createProducerRecord("test-1"));
@@ -90,7 +90,7 @@ public class TopicRecordsDeleteConfiguration {
     }
 
     private ProducerRecord<String, SignalRequest> createProducerRecord(String key) {
-        return new ProducerRecord<>(config.getSignalKafkaTopic(), key, new SignalRequest());
+        return new ProducerRecord<>(config.getSignalTopic(), key, new SignalRequest());
     }
 
     private ConfigEntry changeCleanUpPolicyConfig(ConfigEntry configEntry) {

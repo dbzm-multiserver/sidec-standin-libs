@@ -58,10 +58,10 @@ import static ru.sbrf.sidec.utils.KafkaUtil.clearConsumerGroups;
 @ExtendWith({PostgresExtension.class, KafkaExtension.class, SpringExtension.class})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @Order(10)
-public class SidecStarterEmptyComsunerGroupsIntegrationTest {
+public class SidecStarterEmptyConsumerGroupsIntegrationTest {
     private final SwitchoverConfig config;
 
-    public SidecStarterEmptyComsunerGroupsIntegrationTest(@Qualifier("switchoverConfig") SwitchoverConfig config) {
+    public SidecStarterEmptyConsumerGroupsIntegrationTest(@Qualifier("switchoverConfig") SwitchoverConfig config) {
         this.config = config;
     }
 

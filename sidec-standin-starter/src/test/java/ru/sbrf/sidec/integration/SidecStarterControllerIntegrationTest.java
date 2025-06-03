@@ -70,7 +70,7 @@ public class SidecStarterControllerIntegrationTest {
 
     @Test
     public void controller_successfully_process_signal() throws Exception {
-        initKafkaConsumer(List.of(config.getSignalKafkaTopic()));
+        initKafkaConsumer(List.of(config.getSignalTopic()));
         var request = new SwitchoverRequest(
                 UUID.randomUUID(),
                 SignalMode.STANDIN,
@@ -86,8 +86,8 @@ public class SidecStarterControllerIntegrationTest {
                                 .characterEncoding("UTF-8")
                 )
                 .andExpect(status().isOk());
-        defaultAwait().until(() -> !getKafkaData(config.getSignalKafkaTopic()).isEmpty());
-        SignalResponse signal = OBJECT_MAPPER.readValue(getKafkaData(config.getSignalKafkaTopic()).get(0), SignalResponse.class);
+        defaultAwait().until(() -> !getKafkaData(config.getSignalTopic()).isEmpty());
+        SignalResponse signal = OBJECT_MAPPER.readValue(getKafkaData(config.getSignalTopic()).get(0), SignalResponse.class);
         assertAll(() -> {
             assertEquals(request.getUid(), signal.getUid());
             assertEquals(request.getAuthor(), signal.getAuthor());

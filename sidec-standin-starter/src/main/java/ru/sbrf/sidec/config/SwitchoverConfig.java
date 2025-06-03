@@ -5,7 +5,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.util.Assert;
 
+import java.time.Duration;
 import java.util.UUID;
 
 import static ru.sbrf.sidec.autoconfigure.SwitchoverAutoConfiguration.SWITCHOVER_ENABLED_CONFIG_PROPERTY;
@@ -15,18 +17,20 @@ import static ru.sbrf.sidec.autoconfigure.SwitchoverAutoConfiguration.SWITCHOVER
 public class SwitchoverConfig {
     public static final Logger LOGGER = LoggerFactory.getLogger(SwitchoverConfig.class);
 
-    public final static String SWITCHOVER_SIGNAL_TOPIC_NAME_DEFAULT = "sidec.app_signal";
-    public final static String SWITCHOVER_APP_NAME_DEFAULT = "sidec.switchover-" + UUID.randomUUID();
-    public final static Integer SWITCHOVER_SIGNAL_REQUEST_TIMEOUT_MS_DEFAULT = 1000;
-    public final static Integer SWITCHOVER_POLL_TIMEOUT_MS_DEFAULT = 1000;
-    public final static Integer SWITCHOVER_WATCHER_DELAY_MS_DEFAULT = 1000;
-    public final static Integer SWITCHOVER_WATCHER_CONNECTION_CLOSE_AWAIT_MS_DEFAULT = 1000;
+    // Default values
+    public static final String DEFAULT_SIGNAL_TOPIC = "sidec.app_signal";
+    public static final String DEFAULT_APP_NAME_PREFIX = "sidec.switchover-";
+    public static final Duration DEFAULT_SIGNAL_REQUEST_TIMEOUT = Duration.ofSeconds(1);
+    public static final Duration DEFAULT_POLL_TIMEOUT = Duration.ofSeconds(1);
+    public static final Duration DEFAULT_WATCHER_DELAY = Duration.ofSeconds(1);
+    public static final Duration DEFAULT_CONNECTION_CLOSE_AWAIT = Duration.ofSeconds(1);
 
-    private Integer signalRequestTimeoutMs;
+    // Configuration fields with duration support
+    private Duration signalRequestTimeout;
     private String signalTopic;
-    private Integer pollTimeoutMs;
+    private Duration pollTimeout;
     private String appName;
-    private Integer watcherDelayMs;
+    private Duration watcherDelay;
 
     private final SwitchoverDataSourceConfiguration dataSourceConfig;
     private final SwitchoverKafkaConfig kafkaConfig;
@@ -35,31 +39,38 @@ public class SwitchoverConfig {
             SwitchoverDataSourceConfiguration dataSourceConfig,
             SwitchoverKafkaConfig kafkaConfig
     ) {
+        Assert.notNull(dataSourceConfig, "DataSource configuration must not be null");
+        Assert.notNull(kafkaConfig, "Kafka configuration must not be null");
+
         this.dataSourceConfig = dataSourceConfig;
         this.kafkaConfig = kafkaConfig;
     }
 
     @PostConstruct
-    private void setDefaultParameters() {
+    private void initDefaults() {
         if (signalTopic == null) {
-            LOGGER.info("The signal.topic value is not set. The default value: " + SWITCHOVER_SIGNAL_TOPIC_NAME_DEFAULT);
-            this.signalTopic = SWITCHOVER_SIGNAL_TOPIC_NAME_DEFAULT;
+            LOGGER.info("Signal topic not configured, using default: {}", DEFAULT_SIGNAL_TOPIC);
+            signalTopic = DEFAULT_SIGNAL_TOPIC;
         }
-        if (pollTimeoutMs == null) {
-            LOGGER.info("The poll.timeout.ms value is not set. The default value: " + SWITCHOVER_POLL_TIMEOUT_MS_DEFAULT);
-            this.pollTimeoutMs = SWITCHOVER_POLL_TIMEOUT_MS_DEFAULT;
+
+        if (pollTimeout == null) {
+            LOGGER.info("Poll timeout not configured, using default: {}", DEFAULT_POLL_TIMEOUT);
+            pollTimeout = DEFAULT_POLL_TIMEOUT;
         }
+
         if (appName == null) {
-            LOGGER.info("The app.name value is not set. The default value: " + SWITCHOVER_APP_NAME_DEFAULT);
-            this.appName = SWITCHOVER_APP_NAME_DEFAULT;
+            appName = DEFAULT_APP_NAME_PREFIX + UUID.randomUUID();
+            LOGGER.info("Application name not configured, generated default: {}", appName);
         }
-        if (watcherDelayMs == null) {
-            LOGGER.info("The watcher.delay.ms value is not set. The default value: " + SWITCHOVER_WATCHER_DELAY_MS_DEFAULT);
-            this.watcherDelayMs = SWITCHOVER_WATCHER_DELAY_MS_DEFAULT;
+
+        if (watcherDelay == null) {
+            LOGGER.info("Watcher delay not configured, using default: {}", DEFAULT_WATCHER_DELAY);
+            watcherDelay = DEFAULT_WATCHER_DELAY;
         }
-        if (signalRequestTimeoutMs == null) {
-            LOGGER.info("The signal.request.timeout.ms value is not set. The default value: " + SWITCHOVER_SIGNAL_REQUEST_TIMEOUT_MS_DEFAULT);
-            this.signalRequestTimeoutMs = SWITCHOVER_SIGNAL_REQUEST_TIMEOUT_MS_DEFAULT;
+
+        if (signalRequestTimeout == null) {
+            LOGGER.info("Signal request timeout not configured, using default: {}", DEFAULT_SIGNAL_REQUEST_TIMEOUT);
+            signalRequestTimeout = DEFAULT_SIGNAL_REQUEST_TIMEOUT;
         }
     }
 
@@ -71,12 +82,36 @@ public class SwitchoverConfig {
         this.appName = appName;
     }
 
-    public String getSignalKafkaTopic() {
+    public String getSignalTopic() {
         return signalTopic;
     }
 
     public void setSignalTopic(String signalTopic) {
         this.signalTopic = signalTopic;
+    }
+
+    public Duration getPollTimeout() {
+        return pollTimeout;
+    }
+
+    public void setPollTimeout(Duration pollTimeout) {
+        this.pollTimeout = pollTimeout;
+    }
+
+    public Duration getWatcherDelay() {
+        return watcherDelay;
+    }
+
+    public void setWatcherDelay(Duration watcherDelay) {
+        this.watcherDelay = watcherDelay;
+    }
+
+    public Duration getSignalRequestTimeout() {
+        return signalRequestTimeout;
+    }
+
+    public void setSignalRequestTimeout(Duration signalRequestTimeout) {
+        this.signalRequestTimeout = signalRequestTimeout;
     }
 
     public SwitchoverDataSourceConfiguration getDataSourceConfig() {
@@ -85,29 +120,5 @@ public class SwitchoverConfig {
 
     public SwitchoverKafkaConfig getKafkaConfig() {
         return kafkaConfig;
-    }
-
-    public Integer getPollTimeoutMs() {
-        return pollTimeoutMs;
-    }
-
-    public void setPollTimeoutMs(Integer pollTimeoutMs) {
-        this.pollTimeoutMs = pollTimeoutMs;
-    }
-
-    public Integer getWatcherDelayMs() {
-        return watcherDelayMs;
-    }
-
-    public void setWatcherDelayMs(Integer watcherDelayMs) {
-        this.watcherDelayMs = watcherDelayMs;
-    }
-
-    public Integer getSignalRequestTimeoutMs() {
-        return signalRequestTimeoutMs;
-    }
-
-    public void setSignalRequestTimeoutMs(Integer signalRequestTimeoutMs) {
-        this.signalRequestTimeoutMs = signalRequestTimeoutMs;
     }
 }

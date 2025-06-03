@@ -3,7 +3,6 @@ package ru.sbrf.sidec.helper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.sbrf.sidec.config.SwitchoverConfig;
-import ru.sbrf.sidec.exception.SwitchoverException;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -27,7 +26,7 @@ public class DataSourceConnectionWatcher {
 
     public void watch() {
         LOGGER.info("Start connection watcher");
-        watcher.scheduleAtFixedRate(this::checkClosedConnections, config.getWatcherDelayMs(), config.getWatcherDelayMs(), TimeUnit.MILLISECONDS);
+        watcher.scheduleAtFixedRate(this::checkClosedConnections, config.getWatcherDelay().toMillis(), config.getWatcherDelay().toMillis(), TimeUnit.MILLISECONDS);
         LOGGER.info("Сonnection watcher started");
     }
 
