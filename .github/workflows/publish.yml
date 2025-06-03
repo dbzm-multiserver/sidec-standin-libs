@@ -39,12 +39,9 @@ jobs:
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-          SIGNING_KEY_ID: ${{ steps.gpg_key.outputs.key_id }}
-          SIGNING_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          SIGNING_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           ./gradlew publish \
             -PossrhUsername="$OSSRH_USERNAME" \
-            -PossrhPassword="$OSSRH_PASSWORD" \
-            -Psigning.keyId="$SIGNING_KEY_ID" \
-            -Psigning.password="$SIGNING_PASSPHRASE" \
-            -Psigning.secretKeyRingFile="$HOME/.gnupg/secring.gpg"
+            -PossrhPassword="$OSSRH_PASSWORD"
