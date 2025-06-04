@@ -43,7 +43,9 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static ru.sbrf.sidec.db.ConnectionMode.MAIN;
 import static ru.sbrf.sidec.db.ConnectionMode.STANDIN;
+import static ru.sbrf.sidec.db.ConnectionMode.SWITCH_TO_MAIN;
 import static ru.sbrf.sidec.db.ConnectionMode.SWITCH_TO_STANDIN;
 import static ru.sbrf.sidec.utils.AwaitilityUtil.defaultAwait;
 import static ru.sbrf.sidec.utils.KafkaUtil.clearConsumerGroups;
@@ -137,7 +139,7 @@ public class SidecStarterDatabaseIntegrationTest {
         appenderService.isMessageExist("Try to save the switching signal to the database, retries");
     }
 
-    //@Test
+    @Test
     public void starter_correctly_process_signal() {
         //MAIN -> SWITCH_TO_STANDIN
         UUID uuid = UUID.randomUUID();
@@ -161,9 +163,26 @@ public class SidecStarterDatabaseIntegrationTest {
         AppConnection con2 = executorsPool.standin().select_from_app_connection_table(uuid2).getFirst();
         assertThat(con2.getMode()).isEqualTo(STANDIN);
 
-        //SWITCH_TO_STANDIN -> STANDIN
         //STANDIN -> SWITCH_TO_MAIN
+        UUID uuid3 = UUID.randomUUID();
+        try (Producer<String, SignalRequest> producer = producerFactory.createProducer()) {
+            var standInSwitch = createConsistentSignal(uuid3, SignalMode.MAIN, SignalStatus.STARTED);
+            producer.send(standInSwitch);
+        }
+        defaultAwait().until(() ->  switchoverDataSourceDelegator.getConnectionMode() == SWITCH_TO_MAIN);
+        defaultAwait().until(() -> executorsPool.standin().select_from_app_connection_table(uuid3).size() == 1);
+        AppConnection con3 = executorsPool.standin().select_from_app_connection_table(uuid3).getFirst();
+        assertThat(con3.getMode()).isEqualTo(SWITCH_TO_MAIN);
+
         //SWITCH_TO_MAIN -> MAIN
-        //MAIN -> SWITCH_TO_MAIN
+        UUID uuid4 = UUID.randomUUID();
+        try (Producer<String, SignalRequest> producer = producerFactory.createProducer()) {
+            var standInSwitch = createConsistentSignal(uuid4, SignalMode.MAIN, SignalStatus.READY_TO_SWITCH);
+            producer.send(standInSwitch);
+        }
+        defaultAwait().until(() ->  switchoverDataSourceDelegator.getConnectionMode() == MAIN);
+        defaultAwait().until(() -> executorsPool.main().select_from_app_connection_table(uuid4).size() == 1);
+        AppConnection con4 = executorsPool.main().select_from_app_connection_table(uuid4).getFirst();
+        assertThat(con4.getMode()).isEqualTo(MAIN);
     }
 }

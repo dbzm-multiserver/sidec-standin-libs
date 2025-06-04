@@ -14,6 +14,7 @@ import org.apache.kafka.common.ConsumerGroupState;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.errors.InterruptException;
+import org.apache.kafka.common.errors.WakeupException;
 import org.slf4j.LoggerFactory;
 import org.springframework.retry.support.RetryTemplate;
 import ru.sbrf.sidec.config.SwitchoverConfig;
@@ -69,7 +70,7 @@ public class SwitchoverDataSourceDelegator implements DataSource {
     private String appUid;
     private final String appName;
     private final SwitchoverConfig config;
-    private Consumer<String, SignalResponse> consumer;
+    private volatile Consumer<String, SignalResponse> consumer;
     private final SidecConsumerFactory<String, SignalResponse> consumerFactory;
 
     private final DataSourceConnectionWatcher watcher;
@@ -278,24 +279,21 @@ public class SwitchoverDataSourceDelegator implements DataSource {
     }
 
     private void startStateChecker() {
-        while (true) {
-            try {
-                checkState();
-            } catch (InterruptedException | InterruptException e) {
+        try {
+            while (!Thread.currentThread().isInterrupted()) {
                 try {
+                    checkState();
+                } catch (InterruptedException | InterruptException e) {
                     LOGGER.info("State checker thread was interrupted, shutting down...");
                     Thread.currentThread().interrupt();
-                } finally {
-                    if (consumer != null) {
-                        //TODO WakeUpException
-                        consumer.wakeup();// Прерываем текущий poll()
-                        //TODO Interrupt вылетает
-                        consumer.close(Duration.ofSeconds(2)); // Ждём закрытия
-                        consumer = null;
-                    }
+                    break;
+                } catch (Exception ex) {
+                    LOGGER.warn("Exception during kafka status signal processing", ex);
                 }
-            } catch (Exception ex) {
-                LOGGER.warn("Exception during kafka status signal processing", ex);
+            }
+        } finally {
+            if (consumer != null) {
+                consumer = null;
             }
         }
     }
@@ -308,8 +306,7 @@ public class SwitchoverDataSourceDelegator implements DataSource {
         if (consumer == null) {
             initializeKafkaConsumer();
         }
-        ConsumerRecords<String, SignalResponse> poll = null;
-        poll = consumer.poll(Duration.ofMillis(config.getPollTimeout().toMillis()));
+        var poll = consumer.poll(Duration.ofMillis(config.getPollTimeout().toMillis()));
         if (!poll.isEmpty()) {
             try {
                 LOGGER.info("Switchover received a message from the signal topic. Processing {} messages.", poll.count());
@@ -441,33 +438,18 @@ public class SwitchoverDataSourceDelegator implements DataSource {
     }
 
     public void destroy() {
-        // 1. Завершаем ExecutorService
-        executor.shutdown(); // Не shutdownNow(), чтобы дать потоку chance завершиться
+        executor.shutdown();
         try {
-            // Ждём завершения потока (например, 5 секунд)
             if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
                 LOGGER.warn("Executor did not terminate gracefully, forcing shutdown...");
-                executor.shutdownNow(); // Принудительное завершение
+                executor.shutdownNow();
             }
         } catch (InterruptedException e) {
             LOGGER.warn("Interrupted while waiting for executor shutdown", e);
-            executor.shutdownNow(); // Принудительно закрываем, если прерваны
-            Thread.currentThread().interrupt(); // Восстанавливаем флаг прерывания
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
         }
 
-        // 2. Закрываем Kafka Consumer
-        if (consumer != null) {
-            try {
-                //TODO KafkaConsumer is not safe for multi-threaded access. currentThread
-                consumer.wakeup(); // Прерываем текущий poll()
-                consumer.close(Duration.ofSeconds(2)); // Ждём закрытия
-                consumer = null;
-            } catch (Exception ex) {
-                LOGGER.warn("Could not close consumer gracefully", ex);
-            }
-        }
-
-        // 3. Закрываем watcher (например, соединения с БД)
         try {
             watcher.close();
         } catch (Exception ex) {
