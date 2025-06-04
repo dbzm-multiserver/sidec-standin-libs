@@ -7,6 +7,7 @@ import org.assertj.core.api.HamcrestCondition;
 import org.hamcrest.core.StringStartsWith;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -80,6 +81,7 @@ public class SidecStarterEmptyConsumerGroupsIntegrationTest {
     }
 
     @Test
+    @DisplayName("Нестабильный, тк бывают кейсы когда консьюмер в контексте не успевает отключиться от кафки")
     public void consumer_groups_successfully_cleared_before_start() throws ExecutionException, InterruptedException {
         AdminClient adminClient = config.getKafkaConfig().getAdminClient();
         Collection<ConsumerGroupListing> consumerGroupListings = adminClient.listConsumerGroups().all().get()

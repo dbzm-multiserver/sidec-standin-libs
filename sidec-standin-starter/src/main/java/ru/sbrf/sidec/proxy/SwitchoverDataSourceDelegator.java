@@ -197,9 +197,7 @@ public class SwitchoverDataSourceDelegator implements DataSource {
     }
 
     private Long findLatestOffset() {
-        if (consumer == null) {
-            initializeKafkaConsumer();
-        }
+        initializeKafkaConsumer();
         Long nextOffset = consumer.endOffsets(signalPartitionList).get(signalPartition);
         return Objects.equals(nextOffset, 0L) ? 0 : nextOffset - 1;
     }
@@ -210,9 +208,6 @@ public class SwitchoverDataSourceDelegator implements DataSource {
         ConsumerRecord<String, SignalResponse> latestRecord = null;
         latest_record:
         while (true) {
-            if (consumer == null) {
-                initializeKafkaConsumer();
-            }
             if (Objects.equals(latestOffset, 0L)) {
                 break;
             }
@@ -302,9 +297,6 @@ public class SwitchoverDataSourceDelegator implements DataSource {
         LOGGER.debug("Switchover status check.");
         if (Thread.currentThread().isInterrupted()) {
             throw new InterruptedException("Thread was interrupted");
-        }
-        if (consumer == null) {
-            initializeKafkaConsumer();
         }
         var poll = consumer.poll(Duration.ofMillis(config.getPollTimeout().toMillis()));
         if (!poll.isEmpty()) {
