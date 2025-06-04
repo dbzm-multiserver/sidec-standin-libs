@@ -9,12 +9,10 @@ import org.apache.kafka.clients.admin.ListConsumerGroupsOptions;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.ConsumerGroupState;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.errors.InterruptException;
-import org.apache.kafka.common.errors.WakeupException;
 import org.slf4j.LoggerFactory;
 import org.springframework.retry.support.RetryTemplate;
 import ru.sbrf.sidec.config.SwitchoverConfig;
@@ -111,16 +109,19 @@ public class SwitchoverDataSourceDelegator implements DataSource {
 
     private void createSignalTopicIfNeed() {
         try {
-            Set<String> existingTopics = adminClient.listTopics().names().get();
+            Set<String> existingTopics = adminClient.listTopics().names().get(5, TimeUnit.SECONDS);
             if (!existingTopics.contains(config.getSignalTopic())) {
-                adminClient.createTopics(List.of(new NewTopic(config.getSignalTopic(), 1, (short) 1)));
+                Map<String, String> topicConfigs = new HashMap<>();
+                topicConfigs.put("cleanup.policy", "compact");
+                adminClient.createTopics(List.of(
+                        new NewTopic(config.getSignalTopic(), 1, (short) 1).configs(topicConfigs))
+                ).all().get(5, TimeUnit.SECONDS);;
             }
         } catch (Exception ex) {
             throw new SwitchoverException("Exception during topic creation", ex);
         }
     }
 
-    //TODO на флаг посадить это поведение
     private void changeTopicCleanUpPolicy() {
         ConfigResource configResource = new ConfigResource(ConfigResource.Type.TOPIC, config.getSignalTopic());
         ConfigEntry configEntry;
@@ -270,7 +271,7 @@ public class SwitchoverDataSourceDelegator implements DataSource {
         dispatcher.put(ConnectionMode.MAIN, dataSourceConfig.mainDataSource(bean));
         dispatcher.put(ConnectionMode.SWITCH_TO_MAIN, noOpDataSource);
         dispatcher.put(ConnectionMode.SWITCH_TO_STANDIN, noOpDataSource);
-        dispatcher.put(ConnectionMode.STANDIN, dataSourceConfig.standinDataSource(bean));
+        dispatcher.put(ConnectionMode.STANDIN, dataSourceConfig.standInDataSource(bean));
     }
 
     private void startStateChecker() {

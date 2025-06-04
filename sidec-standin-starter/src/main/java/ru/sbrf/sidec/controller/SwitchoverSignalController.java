@@ -55,9 +55,12 @@ public class SwitchoverSignalController {
         SignalStatus status = FORCE == request.getSwitchType() ? SignalStatus.READY_TO_SWITCH : SignalStatus.STARTED;
         if (request.getSwitchType() == CONSISTENT && !barrierService.isSignalSentAllowed(request.getMode(), status)) {
             return ResponseEntity.badRequest()
-                    .body("Couldn't transit application from" + barrierService.getApplicationConnectionMode() +
-                            "to mode {} " + request.getMode() +
-                            "with status {}" + status);
+                    .body(String.format(
+                            "Cannot transition from %s to %s with status %s",
+                            barrierService.getApplicationConnectionMode(),
+                            request.getMode(),
+                            status
+                    ));
         }
         try {
             var partitionInfos = producer.partitionsFor(config.getSignalTopic());

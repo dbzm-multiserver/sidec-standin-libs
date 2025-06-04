@@ -20,6 +20,10 @@ import java.util.UUID;
 import static ru.sbrf.sidec.autoconfigure.SwitchoverAutoConfiguration.SWITCHOVER_ENABLED_CONFIG_PROPERTY;
 import static ru.sbrf.sidec.config.SidecConfig.CONSUMER_GROUP_ID_PREFIX;
 
+/**
+ * Configuration properties for Kafka in switchover scenario.
+ * Provides factories for Kafka producers, consumers and admin client.
+ */
 @ConfigurationProperties(prefix = "sidec")
 @ConditionalOnProperty(name = SWITCHOVER_ENABLED_CONFIG_PROPERTY, havingValue = "true")
 public class SwitchoverKafkaConfig {
@@ -34,13 +38,10 @@ public class SwitchoverKafkaConfig {
         initKafkaAdminProperties();
         initKafkaConsumerProperties();
         initKafkaProducerProperties();
-        this.consumerFactory = new SidecConsumerFactory<>(kafkaProperties.buildConsumerProperties(null));
-        this.producerFactory = new SidecProducerFactory<>(kafkaProperties.buildProducerProperties(null));
     }
 
     private void initKafkaAdminProperties() {
-        var admin = kafkaProperties.getAdmin();
-        admin.setAutoCreate(false);
+        kafkaProperties.getAdmin().setAutoCreate(false);
         adminClient = AdminClient.create(kafkaProperties.buildAdminProperties(null));
     }
 
@@ -51,12 +52,16 @@ public class SwitchoverKafkaConfig {
         consumer.setAutoOffsetReset("earliest");
         consumer.setKeyDeserializer(StringDeserializer.class);
         consumer.setValueDeserializer(AppSignalDeserializer.class);
+
+        this.consumerFactory = new SidecConsumerFactory<>(kafkaProperties.buildConsumerProperties(null));
     }
 
     private void initKafkaProducerProperties() {
         var producer = kafkaProperties.getProducer();
         producer.setKeySerializer(StringSerializer.class);
         producer.setValueSerializer(AppSignalSerializer.class);
+
+        this.producerFactory = new SidecProducerFactory<>(kafkaProperties.buildProducerProperties(null));
     }
 
     public void setKafka(KafkaProperties kafkaProperties) {
