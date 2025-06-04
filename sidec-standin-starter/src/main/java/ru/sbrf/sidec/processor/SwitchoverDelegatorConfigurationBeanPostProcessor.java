@@ -29,8 +29,7 @@ public class SwitchoverDelegatorConfigurationBeanPostProcessor implements BeanPo
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
         if (bean instanceof DataSource) {
             if (AopUtils.isAopProxy(bean) || AopUtils.isCglibProxy(bean) || AopUtils.isJdkDynamicProxy(bean)) {
-                LOGGER.warn("Failed to replace datasource. Switchover not supported proxy beans");
-                return bean;
+                throw new SwitchoverException("Failed to replace datasource. Switchover not supported proxy beans");
             }
             try {
                 LOGGER.info("Received DataSource bean = {}. Try to replace it with switchover delegator", bean);
@@ -44,7 +43,7 @@ public class SwitchoverDelegatorConfigurationBeanPostProcessor implements BeanPo
                 }
                 return delegator;
             } catch (Exception ex) {
-                LOGGER.warn("Datasource replacement failed. Use original bean", ex);
+                throw new SwitchoverException("Datasource replacement failed.", ex);
             }
         }
         return bean;

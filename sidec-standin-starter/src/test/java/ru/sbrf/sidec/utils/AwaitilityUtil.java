@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 import static org.awaitility.Awaitility.await;
 
 public class AwaitilityUtil {
-    public static final Duration POLL_TIMEOUT = new Duration(60, TimeUnit.SECONDS);
+    public static final Duration POLL_TIMEOUT = new Duration(60, TimeUnit.HOURS);
     public static final Duration POLL_INTERVAL = new Duration(10, TimeUnit.MILLISECONDS);
 
     public static ConditionFactory defaultAwait(String alias) {

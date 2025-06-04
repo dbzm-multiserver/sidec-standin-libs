@@ -176,7 +176,7 @@ public class TestKafkaConsumer {
         //   kafkaSinkRecordData.clear();
     }
 
-    public static void stopConsumer() {
+    public static void stopConsumers() {
         for (var kafkaPolling : kafkaPollingMap.values()) {
             try {
                 if (kafkaPolling != null) {

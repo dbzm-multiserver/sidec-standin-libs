@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static ru.sbrf.sidec.extension.KafkaExtension.producer;
 import static ru.sbrf.sidec.utils.AwaitilityUtil.defaultAwait;
-import static ru.sbrf.sidec.utils.ProducerUtil.createAppSignalProducerRecord;
+import static ru.sbrf.sidec.utils.ProducerUtil.createConsistentSignal;
 
 
 @Disabled("Запуск нескольких тестов падает при gradle build")
@@ -83,9 +83,9 @@ public class SidecAutoConfigurationWithKafkaDefaultsTest {
     @BeforeAll
     public static void initApp() throws ExecutionException, InterruptedException {
         var producer = producer();
-        var standInSwitch = createAppSignalProducerRecord(UUID.randomUUID(), SignalMode.STANDIN, SignalStatus.STARTED);
+        var standInSwitch = createConsistentSignal(UUID.randomUUID(), SignalMode.STANDIN, SignalStatus.STARTED);
         producer.send(standInSwitch).get();
-        var standInReady = createAppSignalProducerRecord(UUID.randomUUID(), SignalMode.STANDIN, SignalStatus.READY_TO_SWITCH);
+        var standInReady = createConsistentSignal(UUID.randomUUID(), SignalMode.STANDIN, SignalStatus.READY_TO_SWITCH);
         producer.send(standInReady).get();
     }
     @BeforeEach

@@ -3,7 +3,6 @@ package ru.sbrf.sidec.integration;
 import org.apache.kafka.clients.producer.Producer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -13,6 +12,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,7 +44,7 @@ import static ru.sbrf.sidec.config.SidecConfig.CONSUMER_GROUP_ID_PREFIX;
 import static ru.sbrf.sidec.db.ConnectionMode.SWITCH_TO_STANDIN;
 import static ru.sbrf.sidec.utils.AwaitilityUtil.defaultAwait;
 import static ru.sbrf.sidec.utils.KafkaUtil.clearConsumerGroups;
-import static ru.sbrf.sidec.utils.ProducerUtil.createAppSignalProducerRecord;
+import static ru.sbrf.sidec.utils.ProducerUtil.createConsistentSignal;
 
 @DataJdbcTest
 @AutoConfigureJdbc
@@ -62,7 +62,7 @@ import static ru.sbrf.sidec.utils.ProducerUtil.createAppSignalProducerRecord;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ExtendWith({PostgresExtension.class, KafkaExtension.class, SpringExtension.class})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-@Order(30)
+@TestPropertySource(properties = {"spring.test.context.cache.maxSize=0"})
 public class SidecStarterIntegrationTest {
 
     private final JdbcTemplate jdbcTemplateApp;
@@ -131,7 +131,7 @@ public class SidecStarterIntegrationTest {
 
         //Выполняем начало перехода на стендИн
         UUID uuid1 = UUID.randomUUID();
-        var standInSwitch = createAppSignalProducerRecord(uuid1, SignalMode.STANDIN, SignalStatus.STARTED);
+        var standInSwitch = createConsistentSignal(uuid1, SignalMode.STANDIN, SignalStatus.STARTED);
         producer.send(standInSwitch);
         //Ожидаем смены состояния делегатора на промежуточное
         defaultAwait().until(() -> switchoverDataSourceDelegator.getConnectionMode() == SWITCH_TO_STANDIN);
@@ -153,7 +153,7 @@ public class SidecStarterIntegrationTest {
 
         //Проверка окончания перехода на стендИн
         UUID uuid2 = UUID.randomUUID();
-        var standInReady = createAppSignalProducerRecord(uuid2, SignalMode.STANDIN, SignalStatus.READY_TO_SWITCH);
+        var standInReady = createConsistentSignal(uuid2, SignalMode.STANDIN, SignalStatus.READY_TO_SWITCH);
         producer.send(standInReady);
         defaultAwait().until(() -> switchoverDataSourceDelegator.getConnectionMode() == ConnectionMode.STANDIN);
 
@@ -179,7 +179,7 @@ public class SidecStarterIntegrationTest {
         //Отправка 10ти аналогичных сигналов в кафку
         for (int i = 0; i < 10; i++) {
             uuid = UUID.randomUUID();
-            var standInReadyRepeated = createAppSignalProducerRecord(uuid, SignalMode.STANDIN, SignalStatus.STARTED);
+            var standInReadyRepeated = createConsistentSignal(uuid, SignalMode.STANDIN, SignalStatus.STARTED);
             producer.send(standInReadyRepeated);
         }
 

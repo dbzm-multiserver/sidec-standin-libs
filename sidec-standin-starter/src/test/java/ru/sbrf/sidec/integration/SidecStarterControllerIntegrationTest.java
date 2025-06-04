@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.sbrf.sidec.autoconfigure.SwitchoverAutoConfiguration;
@@ -41,6 +42,7 @@ import static ru.sbrf.sidec.utils.AwaitilityUtil.defaultAwait;
 import static ru.sbrf.sidec.utils.KafkaUtil.clearConsumerGroups;
 import static ru.sbrf.sidec.utils.TestKafkaConsumer.getKafkaData;
 import static ru.sbrf.sidec.utils.TestKafkaConsumer.initKafkaConsumer;
+import static ru.sbrf.sidec.utils.TestKafkaConsumer.stopConsumers;
 
 @ContextConfiguration(classes = {
         SwitchoverAutoConfiguration.class,
@@ -53,8 +55,8 @@ import static ru.sbrf.sidec.utils.TestKafkaConsumer.initKafkaConsumer;
 })
 @ExtendWith({KafkaExtension.class, SpringExtension.class})
 @WebMvcTest(value = SwitchoverSignalController.class, excludeAutoConfiguration = SecurityAutoConfiguration.class)
-@Order(20)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@TestPropertySource(properties = {"spring.test.context.cache.maxSize=0"})
 public class SidecStarterControllerIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
@@ -63,6 +65,7 @@ public class SidecStarterControllerIntegrationTest {
     public void clean_up() {
         KafkaUtil.deleteKafkaTopics();
         clearConsumerGroups();
+        stopConsumers();
     }
 
     @Autowired
@@ -87,7 +90,7 @@ public class SidecStarterControllerIntegrationTest {
                 )
                 .andExpect(status().isOk());
         defaultAwait().until(() -> !getKafkaData(config.getSignalTopic()).isEmpty());
-        SignalResponse signal = OBJECT_MAPPER.readValue(getKafkaData(config.getSignalTopic()).get(0), SignalResponse.class);
+        SignalResponse signal = OBJECT_MAPPER.readValue(getKafkaData(config.getSignalTopic()).getFirst(), SignalResponse.class);
         assertAll(() -> {
             assertEquals(request.getUid(), signal.getUid());
             assertEquals(request.getAuthor(), signal.getAuthor());
