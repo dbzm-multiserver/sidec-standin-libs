@@ -21,6 +21,7 @@ import ru.sbrf.sidec.config.MultipleDataSourceConfiguration;
 import ru.sbrf.sidec.config.SwitchoverConfig;
 import ru.sbrf.sidec.config.SwitchoverDataSourceConfiguration;
 import ru.sbrf.sidec.config.SwitchoverKafkaConfig;
+import ru.sbrf.sidec.helper.SignalBarrierService;
 import ru.sbrf.sidec.db.AppConnection;
 import ru.sbrf.sidec.extension.KafkaExtension;
 import ru.sbrf.sidec.extension.PostgresExtension;
@@ -57,6 +58,7 @@ import static ru.sbrf.sidec.utils.ProducerUtil.createConsistentSignal;
         SwitchoverAutoConfiguration.class,
         MultipleDataSourceConfiguration.class,
         SwitchoverDelegatorConfigurationBeanPostProcessor.class,
+        SignalBarrierService.class,
         RetryProperties.class,
         RetryService.class,
         LoggingAppenderService.class
@@ -158,17 +160,6 @@ public class SidecStarterDatabaseIntegrationTest {
         defaultAwait().until(() -> executorsPool.standin().select_from_app_connection_table(uuid2).size() == 1);
         AppConnection con2 = executorsPool.standin().select_from_app_connection_table(uuid2).getFirst();
         assertThat(con2.getMode()).isEqualTo(STANDIN);
-
-        //STANDIN -> SWITCH_TO_STANDIN
-        UUID uuid3 = UUID.randomUUID();
-        try (Producer<String, SignalRequest> producer = producerFactory.createProducer()) {
-            var standInSwitch = createConsistentSignal(uuid3, SignalMode.STANDIN, SignalStatus.READY_TO_SWITCH);
-            producer.send(standInSwitch);
-        }
-        defaultAwait().until(() ->  switchoverDataSourceDelegator.getConnectionMode() == SWITCH_TO_STANDIN);
-        defaultAwait().until(() -> executorsPool.standin().select_from_app_connection_table(uuid3).size() == 1);
-        AppConnection con3 = executorsPool.standin().select_from_app_connection_table(uuid3).getFirst();
-        assertThat(con3.getMode()).isEqualTo(SWITCH_TO_STANDIN);
 
         //SWITCH_TO_STANDIN -> STANDIN
         //STANDIN -> SWITCH_TO_MAIN

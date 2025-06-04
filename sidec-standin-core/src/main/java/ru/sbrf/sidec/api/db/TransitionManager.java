@@ -24,10 +24,10 @@ import static ru.sbrf.sidec.kafka.domain.SwitchType.FORCE;
 public class TransitionManager {
     public static final Logger LOGGER = LoggerFactory.getLogger(TransitionManager.class);
 
-    private static final String SWITCH_MESSAGE = "Switch between databases was requested to [{}] mode. current_mode: [{}]. switch_type = [{}]";
-    private static final String CONSISTENT_MESSAGE = SWITCH_MESSAGE + " with transactional integrity control.";
-    private static final String FORCE_MESSAGE = SWITCH_MESSAGE + " without guarantees of integrity. Possible collisions main - standin";
-    private static final String NOT_ALLOWED_MESSAGE = SWITCH_MESSAGE + ". Switching is not possible.";
+    public static final String SWITCH_MESSAGE = "Switch between databases was requested to [{}] mode. current_mode: [{}]. switch_type = [{}]";
+    public static final String CONSISTENT_MESSAGE = SWITCH_MESSAGE + " with transactional integrity control.";
+    public static final String FORCE_MESSAGE = SWITCH_MESSAGE + " without guarantees of integrity. Possible collisions main - standin";
+    public static final String NOT_ALLOWED_MESSAGE = SWITCH_MESSAGE + ". Switching is not possible.";
 
     private final String appName;
 
@@ -93,7 +93,7 @@ public class TransitionManager {
         return connectionMode;
     }
 
-    private static ConnectionMode transitState(SignalMode mode, SignalStatus status) {
+    public static ConnectionMode transitState(SignalMode mode, SignalStatus status) {
         if (SignalMode.MAIN.equals(mode)) {
             if (SignalStatus.STARTED.equals(status)) return SWITCH_TO_MAIN;
             if (SignalStatus.READY_TO_SWITCH.equals(status)) return MAIN;

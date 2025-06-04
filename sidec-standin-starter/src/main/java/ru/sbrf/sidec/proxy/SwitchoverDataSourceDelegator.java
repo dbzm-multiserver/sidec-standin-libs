@@ -17,6 +17,7 @@ import org.apache.kafka.common.errors.InterruptException;
 import org.slf4j.LoggerFactory;
 import org.springframework.retry.support.RetryTemplate;
 import ru.sbrf.sidec.config.SwitchoverConfig;
+import ru.sbrf.sidec.helper.SignalBarrierService;
 import ru.sbrf.sidec.db.ConnectionMode;
 import ru.sbrf.sidec.db.ConnectionTableQueryExecutor;
 import ru.sbrf.sidec.exception.SwitchoverException;
@@ -75,11 +76,13 @@ public class SwitchoverDataSourceDelegator implements DataSource {
     private final TopicPartition signalPartition;
     private final List<TopicPartition> signalPartitionList;
     private final AdminClient adminClient;
+    private final SignalBarrierService barrierService;
 
     //TODO метрика
     private final RetryTemplate retryTemplate;
 
-    public SwitchoverDataSourceDelegator(Object bean, SwitchoverConfig config, RetryService retryService) {
+    public SwitchoverDataSourceDelegator(Object bean, SwitchoverConfig config, RetryService retryService, SignalBarrierService barrierService) {
+        this.barrierService = barrierService;
         this.retryTemplate = retryService.retryTemplate();
         this.config = config;
         adminClient = config.getKafkaConfig().getAdminClient();
@@ -252,7 +255,7 @@ public class SwitchoverDataSourceDelegator implements DataSource {
     }
 
     private void initializeDefaultStateOnStartUp() {
-        connectionMode = ConnectionMode.MAIN;
+        updateConnectionMode(ConnectionMode.MAIN);
         this.dataSource.set(dispatcher.get(connectionMode));
         LOGGER.info("Switchover is initialized after receiving a signal message from kafka at startup. Connection mode: " + connectionMode);
     }
@@ -329,7 +332,7 @@ public class SwitchoverDataSourceDelegator implements DataSource {
         } else if (isTransitionAllowed(connectionMode, newMode, signal.getSwitchType())) {
             watcher.closeAllConnections();
             saveMode(newMode, signal);
-            connectionMode = newMode;
+            updateConnectionMode(newMode);
             this.dataSource.set(dispatcher.get(connectionMode));
             LOGGER.info("The application has been switched to mode:{}. Start processing incoming requests.", newMode);
         } else {
@@ -357,6 +360,11 @@ public class SwitchoverDataSourceDelegator implements DataSource {
         return newMode == ConnectionMode.SWITCH_TO_MAIN || newMode == ConnectionMode.STANDIN ?
                 dispatcher.get(ConnectionMode.STANDIN).getConnection() :
                 dispatcher.get(ConnectionMode.MAIN).getConnection();
+    }
+
+    private void updateConnectionMode(ConnectionMode connectionMode) {
+        barrierService.setApplicationConnectionMode(connectionMode);
+        this.connectionMode = connectionMode;
     }
 
     //For Testing

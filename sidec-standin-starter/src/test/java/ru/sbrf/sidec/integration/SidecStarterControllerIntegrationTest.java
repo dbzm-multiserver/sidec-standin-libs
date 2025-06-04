@@ -1,8 +1,6 @@
 package ru.sbrf.sidec.integration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
@@ -18,7 +16,9 @@ import ru.sbrf.sidec.autoconfigure.SwitchoverAutoConfiguration;
 import ru.sbrf.sidec.config.SwitchoverConfig;
 import ru.sbrf.sidec.config.SwitchoverDataSourceConfiguration;
 import ru.sbrf.sidec.config.SwitchoverKafkaConfig;
+import ru.sbrf.sidec.helper.SignalBarrierService;
 import ru.sbrf.sidec.controller.SwitchoverSignalController;
+import ru.sbrf.sidec.db.ConnectionMode;
 import ru.sbrf.sidec.kafka.domain.SwitchoverRequest;
 import ru.sbrf.sidec.extension.KafkaExtension;
 import ru.sbrf.sidec.kafka.domain.SignalMode;
@@ -50,6 +50,7 @@ import static ru.sbrf.sidec.utils.TestKafkaConsumer.stopConsumers;
         SwitchoverDataSourceConfiguration.class,
         SwitchoverKafkaConfig.class,
         SwitchoverSignalController.class,
+        SignalBarrierService.class,
         RetryProperties.class,
         RetryService.class
 })
@@ -70,6 +71,8 @@ public class SidecStarterControllerIntegrationTest {
 
     @Autowired
     private SwitchoverConfig config;
+    @Autowired
+    private SignalBarrierService barrierService;
 
     @Test
     public void controller_successfully_process_signal() throws Exception {
@@ -99,5 +102,25 @@ public class SidecStarterControllerIntegrationTest {
             assertEquals(request.getSwitchType(), signal.getSwitchType());
             assertEquals(SignalStatus.STARTED, signal.getStatus());
         });
+    }
+
+    @Test
+    public void controller_failed_for_inconsistent_signal() throws Exception {
+        barrierService.setApplicationConnectionMode(ConnectionMode.SWITCH_TO_STANDIN);
+        var request2 = new SwitchoverRequest(
+                UUID.randomUUID(),
+                SignalMode.STANDIN,
+                "grebenyuk sergey",
+                "работы на сервере по миграции на новую версию pangolin",
+                SwitchType.CONSISTENT
+        );
+        String jsonRequest2 = OBJECT_MAPPER.writeValueAsString(request2);
+        mockMvc.perform(
+                        post(APP_SIGNAL_ENDPOINT)
+                                .contentType(MediaType.APPLICATION_JSON_VALUE)
+                                .content(jsonRequest2)
+                                .characterEncoding("UTF-8")
+                )
+                .andExpect(status().isBadRequest());
     }
 }

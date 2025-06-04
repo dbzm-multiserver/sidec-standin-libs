@@ -7,7 +7,6 @@ import org.assertj.core.api.HamcrestCondition;
 import org.hamcrest.core.StringStartsWith;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -22,6 +21,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import ru.sbrf.sidec.autoconfigure.SwitchoverAutoConfiguration;
 import ru.sbrf.sidec.config.*;
+import ru.sbrf.sidec.helper.SignalBarrierService;
 import ru.sbrf.sidec.extension.KafkaExtension;
 import ru.sbrf.sidec.extension.PostgresExtension;
 import ru.sbrf.sidec.processor.SwitchoverDelegatorConfigurationBeanPostProcessor;
@@ -51,6 +51,7 @@ import static ru.sbrf.sidec.utils.KafkaUtil.clearConsumerGroups;
         SwitchoverAutoConfiguration.class,
         MultipleDataSourceConfiguration.class,
         SwitchoverDelegatorConfigurationBeanPostProcessor.class,
+        SignalBarrierService.class,
         RetryProperties.class,
         RetryService.class,
         LoggingAppenderService.class
