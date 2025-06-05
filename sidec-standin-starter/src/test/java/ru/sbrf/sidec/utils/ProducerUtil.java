@@ -10,7 +10,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public class ProducerUtil {
-    public static ProducerRecord<String, SignalRequest> createAppSignalProducerRecord(UUID signalUid, SignalMode signalMode, SignalStatus signalStatus) {
+    public static ProducerRecord<String, SignalRequest> createConsistentSignal(UUID signalUid, SignalMode signalMode, SignalStatus signalStatus) {
         return new ProducerRecord<>("sidec.app_signal", "sidec.app_signal.status",
                 new SignalRequest(signalUid, signalMode, "sidec-user", "switch mode", signalStatus, OffsetDateTime.now(), SwitchType.CONSISTENT)
         );

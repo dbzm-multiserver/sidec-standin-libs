@@ -21,7 +21,7 @@ public class SidecKafkaContainer {
      */
     public static final int INTERNAL_KAFKA_PORT = 9092;
     public static final String ZOOKEEPER_NETWORK_ALIAS = "zookeeper";
-    private static final String KAFKA_UI_IMAGE = "base/docker.io/provectuslabs/kafka-ui:1108c760e5f0b23908f3818500b78fe57d44ce71";
+    private static final String KAFKA_UI_IMAGE = "provectuslabs/kafka-ui";
 
     public static KafkaContainer create() {
         Network network = Network.newNetwork();

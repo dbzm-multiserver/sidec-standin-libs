@@ -72,6 +72,11 @@ public class DataSourceConnectionWatcher {
                     connection.close();
                 }
             } catch (SQLException e) {
+                try {
+                    connection.abort(Executors.newSingleThreadExecutor());
+                } catch (SQLException ex) {
+                    LOGGER.warn("Error during abort connections", ex);
+                }
                 LOGGER.warn("Error during deletion closed connections");
             } finally {
                 iterator.remove();

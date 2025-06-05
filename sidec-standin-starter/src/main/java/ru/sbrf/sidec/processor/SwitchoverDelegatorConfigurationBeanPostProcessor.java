@@ -8,6 +8,7 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.DestructionAwareBeanPostProcessor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import ru.sbrf.sidec.config.SwitchoverConfig;
+import ru.sbrf.sidec.helper.SignalBarrierService;
 import ru.sbrf.sidec.exception.SwitchoverException;
 import ru.sbrf.sidec.proxy.SwitchoverDataSourceDelegator;
 import ru.sbrf.sidec.retry.RetryService;
@@ -19,18 +20,19 @@ public class SwitchoverDelegatorConfigurationBeanPostProcessor implements BeanPo
     public static final Logger LOGGER = LoggerFactory.getLogger(SwitchoverDelegatorConfigurationBeanPostProcessor.class);
     private final SwitchoverConfig config;
     private final RetryService retryService;
+    private final SignalBarrierService barrierService;
     private SwitchoverDataSourceDelegator delegator;
 
-    public SwitchoverDelegatorConfigurationBeanPostProcessor(SwitchoverConfig config, RetryService retryService) {
+    public SwitchoverDelegatorConfigurationBeanPostProcessor(SwitchoverConfig config, RetryService retryService, SignalBarrierService barrierService) {
         this.config = config;
         this.retryService = retryService;
+        this.barrierService = barrierService;
     }
 
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
         if (bean instanceof DataSource) {
             if (AopUtils.isAopProxy(bean) || AopUtils.isCglibProxy(bean) || AopUtils.isJdkDynamicProxy(bean)) {
-                LOGGER.warn("Failed to replace datasource. Switchover not supported proxy beans");
-                return bean;
+                throw new SwitchoverException("Failed to replace datasource. Switchover not supported proxy beans");
             }
             try {
                 LOGGER.info("Received DataSource bean = {}. Try to replace it with switchover delegator", bean);
@@ -40,11 +42,11 @@ public class SwitchoverDelegatorConfigurationBeanPostProcessor implements BeanPo
                 if (bean instanceof SwitchoverDataSourceDelegator) {
                     delegator = (SwitchoverDataSourceDelegator) bean;
                 } else {
-                    delegator = new SwitchoverDataSourceDelegator(bean, config, retryService);
+                    delegator = new SwitchoverDataSourceDelegator(bean, config, retryService, barrierService);
                 }
                 return delegator;
             } catch (Exception ex) {
-                LOGGER.warn("Datasource replacement failed. Use original bean", ex);
+                throw new SwitchoverException("Datasource replacement failed.", ex);
             }
         }
         return bean;

@@ -7,7 +7,7 @@ import org.assertj.core.api.HamcrestCondition;
 import org.hamcrest.core.StringStartsWith;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -16,11 +16,13 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureJdbc;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import ru.sbrf.sidec.autoconfigure.SwitchoverAutoConfiguration;
 import ru.sbrf.sidec.config.*;
+import ru.sbrf.sidec.helper.SignalBarrierService;
 import ru.sbrf.sidec.extension.KafkaExtension;
 import ru.sbrf.sidec.extension.PostgresExtension;
 import ru.sbrf.sidec.processor.SwitchoverDelegatorConfigurationBeanPostProcessor;
@@ -37,6 +39,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.not;
 import static ru.sbrf.sidec.config.SidecConfig.*;
+import static ru.sbrf.sidec.utils.AwaitilityUtil.defaultAwait;
 import static ru.sbrf.sidec.utils.KafkaUtil.clearConsumerGroups;
 
 @DataJdbcTest
@@ -49,6 +52,7 @@ import static ru.sbrf.sidec.utils.KafkaUtil.clearConsumerGroups;
         SwitchoverAutoConfiguration.class,
         MultipleDataSourceConfiguration.class,
         SwitchoverDelegatorConfigurationBeanPostProcessor.class,
+        SignalBarrierService.class,
         RetryProperties.class,
         RetryService.class,
         LoggingAppenderService.class
@@ -57,7 +61,7 @@ import static ru.sbrf.sidec.utils.KafkaUtil.clearConsumerGroups;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ExtendWith({PostgresExtension.class, KafkaExtension.class, SpringExtension.class})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-@Order(10)
+@TestPropertySource(properties = {"spring.test.context.cache.maxSize=0"})
 public class SidecStarterEmptyConsumerGroupsIntegrationTest {
     private final SwitchoverConfig config;
 
@@ -73,9 +77,11 @@ public class SidecStarterEmptyConsumerGroupsIntegrationTest {
     @AfterAll
     public static void afterAll() {
         clearConsumerGroups();
+        KafkaUtil.deleteKafkaTopics();
     }
 
     @Test
+    @DisplayName("Нестабильный, тк бывают кейсы когда консьюмер в контексте не успевает отключиться от кафки")
     public void consumer_groups_successfully_cleared_before_start() throws ExecutionException, InterruptedException {
         AdminClient adminClient = config.getKafkaConfig().getAdminClient();
         Collection<ConsumerGroupListing> consumerGroupListings = adminClient.listConsumerGroups().all().get()

@@ -20,7 +20,7 @@ public class SwitchoverDelegatorMetrics {
         }});
     }
 
-    public void registerSwitchoverMetrics(AtomicReference<ConnectionMode> connectionMode) {
+    public void registerSwitchoverMetrics(ConnectionMode connectionMode) {
         Map<String, String> tags = new HashMap<>();
         metricRegistry.addMetric(
                 metricRegistry.metricName(
@@ -29,7 +29,7 @@ public class SwitchoverDelegatorMetrics {
                         "Show current state of switchover delegator.",
                         tags
                 ),
-                now -> connectionMode.get().name()
+                now -> connectionMode.name()
         );
     }
 }

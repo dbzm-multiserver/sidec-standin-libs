@@ -56,6 +56,7 @@ public class ConnectionTableQueryExecutor {
                 pstmt.executeUpdate();
             }
             con.commit();
+            con.setAutoCommit(true);
         } catch (SQLException e) {
             throw new SwitchoverException(e.getMessage(), e);
         }

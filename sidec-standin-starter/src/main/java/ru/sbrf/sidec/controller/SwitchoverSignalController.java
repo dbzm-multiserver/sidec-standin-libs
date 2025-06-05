@@ -11,6 +11,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import ru.sbrf.sidec.config.SwitchoverConfig;
+import ru.sbrf.sidec.helper.SignalBarrierService;
 import ru.sbrf.sidec.kafka.domain.SwitchoverRequest;
 import ru.sbrf.sidec.exception.SwitchoverException;
 import ru.sbrf.sidec.kafka.domain.SignalRequest;
@@ -20,6 +21,7 @@ import java.time.OffsetDateTime;
 import java.util.concurrent.TimeUnit;
 
 import static ru.sbrf.sidec.autoconfigure.SwitchoverAutoConfiguration.SWITCHOVER_ENABLED_CONFIG_PROPERTY;
+import static ru.sbrf.sidec.kafka.domain.SwitchType.CONSISTENT;
 import static ru.sbrf.sidec.kafka.domain.SwitchType.FORCE;
 import static ru.sbrf.sidec.util.ObjectMapperUtil.readValue;
 
@@ -30,10 +32,12 @@ public class SwitchoverSignalController {
     public static final Logger LOGGER = LoggerFactory.getLogger(SwitchoverSignalController.class);
     private final Producer<String, SignalRequest> producer;
     private final SwitchoverConfig config;
+    private final SignalBarrierService barrierService;
 
-    public SwitchoverSignalController(SwitchoverConfig config) {
+    public SwitchoverSignalController(SwitchoverConfig config, SignalBarrierService barrierService) {
         this.producer = config.getKafkaConfig().getProducerFactory().createProducer();
         this.config = config;
+        this.barrierService = barrierService;
     }
 
     @PostMapping(
@@ -44,12 +48,25 @@ public class SwitchoverSignalController {
     public ResponseEntity<String> produceAppSignal(@RequestBody byte[] rawRequest) {
         SwitchoverRequest request = readValue(rawRequest, SwitchoverRequest.class);
         LOGGER.info("A request was received to switch the mode via an HTTP request. Request Body: {}", request);
+        if (request == null) {
+            return ResponseEntity.internalServerError()
+                    .body("Request entity is null");
+        }
+        SignalStatus status = FORCE == request.getSwitchType() ? SignalStatus.READY_TO_SWITCH : SignalStatus.STARTED;
+        if (request.getSwitchType() == CONSISTENT && !barrierService.isSignalSentAllowed(request.getMode(), status)) {
+            return ResponseEntity.badRequest()
+                    .body(String.format(
+                            "Cannot transition from %s to %s with status %s",
+                            barrierService.getApplicationConnectionMode(),
+                            request.getMode(),
+                            status
+                    ));
+        }
         try {
             var partitionInfos = producer.partitionsFor(config.getSignalTopic());
             if (partitionInfos.size() != 1) {
                 throw new SwitchoverException("The number of partitions in the topic " + config.getSignalTopic() + " should be equal to 1");
             }
-            SignalStatus status = FORCE == request.getSwitchType() ? SignalStatus.READY_TO_SWITCH : SignalStatus.STARTED;
             SignalRequest signal = new SignalRequest(
                     request.getUid(),
                     request.getMode(),

@@ -6,14 +6,17 @@ import org.apache.kafka.clients.admin.Config;
 import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.ConsumerGroupListing;
 import org.apache.kafka.clients.admin.ListConsumerGroupsOptions;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.ConsumerGroupState;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigResource;
+import org.apache.kafka.common.errors.InterruptException;
 import org.slf4j.LoggerFactory;
 import org.springframework.retry.support.RetryTemplate;
 import ru.sbrf.sidec.config.SwitchoverConfig;
+import ru.sbrf.sidec.helper.SignalBarrierService;
 import ru.sbrf.sidec.db.ConnectionMode;
 import ru.sbrf.sidec.db.ConnectionTableQueryExecutor;
 import ru.sbrf.sidec.exception.SwitchoverException;
@@ -23,7 +26,6 @@ import ru.sbrf.sidec.api.db.TransitionManager;
 import ru.sbrf.sidec.kafka.domain.SignalResponse;
 import ru.sbrf.sidec.kafka.factory.SidecConsumerFactory;
 import ru.sbrf.sidec.retry.RetryService;
-import ru.sbrf.sidec.metrics.MetricRegistry;
 import ru.sbrf.sidec.metrics.SwitchoverDelegatorMetrics;
 
 import javax.sql.DataSource;
@@ -61,26 +63,29 @@ public class SwitchoverDataSourceDelegator implements DataSource {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final SwitchoverLocker locker = new SwitchoverLocker();
 
-    private final AtomicReference<ConnectionMode> connectionMode = new AtomicReference<>();
+    private volatile ConnectionMode connectionMode = null;
     private final AtomicReference<DataSource> dataSource = new AtomicReference<>();
     private String appUid;
     private final String appName;
     private final SwitchoverConfig config;
-    private Consumer<String, SignalResponse> consumer;
+    private volatile Consumer<String, SignalResponse> consumer;
     private final SidecConsumerFactory<String, SignalResponse> consumerFactory;
 
     private final DataSourceConnectionWatcher watcher;
     private final TopicPartition signalPartition;
     private final List<TopicPartition> signalPartitionList;
     private final AdminClient adminClient;
+    private final SignalBarrierService barrierService;
 
     //TODO метрика
     private final RetryTemplate retryTemplate;
 
-    public SwitchoverDataSourceDelegator(Object bean, SwitchoverConfig config, RetryService retryService) {
+    public SwitchoverDataSourceDelegator(Object bean, SwitchoverConfig config, RetryService retryService, SignalBarrierService barrierService) {
+        this.barrierService = barrierService;
         this.retryTemplate = retryService.retryTemplate();
         this.config = config;
         adminClient = config.getKafkaConfig().getAdminClient();
+        createSignalTopicIfNeed();
         clearEmptyConsumerGroups();
         changeTopicCleanUpPolicy();
         watcher = new DataSourceConnectionWatcher(config);
@@ -100,6 +105,21 @@ public class SwitchoverDataSourceDelegator implements DataSource {
     private void registerMetrics() {
         SwitchoverDelegatorMetrics metrics = new SwitchoverDelegatorMetrics(appUid, appName);
         metrics.registerSwitchoverMetrics(connectionMode);
+    }
+
+    private void createSignalTopicIfNeed() {
+        try {
+            Set<String> existingTopics = adminClient.listTopics().names().get(5, TimeUnit.SECONDS);
+            if (!existingTopics.contains(config.getSignalTopic())) {
+                Map<String, String> topicConfigs = new HashMap<>();
+                topicConfigs.put("cleanup.policy", "compact");
+                adminClient.createTopics(List.of(
+                        new NewTopic(config.getSignalTopic(), 1, (short) 1).configs(topicConfigs))
+                ).all().get(5, TimeUnit.SECONDS);;
+            }
+        } catch (Exception ex) {
+            throw new SwitchoverException("Exception during topic creation", ex);
+        }
     }
 
     private void changeTopicCleanUpPolicy() {
@@ -178,9 +198,7 @@ public class SwitchoverDataSourceDelegator implements DataSource {
     }
 
     private Long findLatestOffset() {
-        if (consumer == null) {
-            initializeKafkaConsumer();
-        }
+        initializeKafkaConsumer();
         Long nextOffset = consumer.endOffsets(signalPartitionList).get(signalPartition);
         return Objects.equals(nextOffset, 0L) ? 0 : nextOffset - 1;
     }
@@ -191,9 +209,6 @@ public class SwitchoverDataSourceDelegator implements DataSource {
         ConsumerRecord<String, SignalResponse> latestRecord = null;
         latest_record:
         while (true) {
-            if (consumer == null) {
-                initializeKafkaConsumer();
-            }
             if (Objects.equals(latestOffset, 0L)) {
                 break;
             }
@@ -237,9 +252,9 @@ public class SwitchoverDataSourceDelegator implements DataSource {
     }
 
     private void initializeDefaultStateOnStartUp() {
-        connectionMode.set(ConnectionMode.MAIN);
-        this.dataSource.set(dispatcher.get(connectionMode.get()));
-        LOGGER.info("Switchover is initialized after receiving a signal message from kafka at startup. Connection mode: " + connectionMode.get());
+        updateConnectionMode(ConnectionMode.MAIN);
+        this.dataSource.set(dispatcher.get(connectionMode));
+        LOGGER.info("Switchover is initialized after receiving a signal message from kafka at startup. Connection mode: " + connectionMode);
     }
 
     private void initializeKafkaConsumer() {
@@ -256,43 +271,44 @@ public class SwitchoverDataSourceDelegator implements DataSource {
         dispatcher.put(ConnectionMode.MAIN, dataSourceConfig.mainDataSource(bean));
         dispatcher.put(ConnectionMode.SWITCH_TO_MAIN, noOpDataSource);
         dispatcher.put(ConnectionMode.SWITCH_TO_STANDIN, noOpDataSource);
-        dispatcher.put(ConnectionMode.STANDIN, dataSourceConfig.standinDataSource(bean));
+        dispatcher.put(ConnectionMode.STANDIN, dataSourceConfig.standInDataSource(bean));
     }
 
     private void startStateChecker() {
-        while (true) {
-            try {
-                checkState();
-            } catch (Exception ex) {
-                LOGGER.warn("Exception during kafka status signal processing", ex);
+        try {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    checkState();
+                } catch (InterruptedException | InterruptException e) {
+                    LOGGER.info("State checker thread was interrupted, shutting down...");
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception ex) {
+                    LOGGER.warn("Exception during kafka status signal processing", ex);
+                }
+            }
+        } finally {
+            if (consumer != null) {
+                consumer = null;
             }
         }
     }
 
-    private void checkState() {
+    private void checkState() throws InterruptedException {
         LOGGER.debug("Switchover status check.");
-        try {
-            if (consumer == null) {
-                initializeKafkaConsumer();
-            }
-            //TODO тут мультитред сделать
-            var poll = consumer.poll(Duration.ofMillis(config.getPollTimeout().toMillis()));
-            if (!poll.isEmpty()) {
-                try {
-                    LOGGER.info("Switchover received a message from the alarm topic. Processing {} messages.", poll.count());
-                    locker.writeLock();
-                    poll.forEach(this::updateConnectionMode);
-                } finally {
-                    LOGGER.debug("Committing messages on signal topic");
-                    consumer.commitSync();
-                    locker.writeUnlock();
-                }
-            }
-        } catch (Exception ex) {
-            LOGGER.warn("Exception during kafka status signal processing", ex);
-            if (consumer != null) {
-                consumer.close();
-                consumer = null;
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException("Thread was interrupted");
+        }
+        var poll = consumer.poll(Duration.ofMillis(config.getPollTimeout().toMillis()));
+        if (!poll.isEmpty()) {
+            try {
+                LOGGER.info("Switchover received a message from the signal topic. Processing {} messages.", poll.count());
+                locker.writeLock();
+                poll.forEach(this::updateConnectionMode);
+            } finally {
+                LOGGER.debug("Committing messages on signal topic");
+                consumer.commitSync();
+                locker.writeUnlock();
             }
         }
     }
@@ -301,17 +317,17 @@ public class SwitchoverDataSourceDelegator implements DataSource {
         var signal = record.value();
         var newMode = TransitionManager.convertSignalToConnectionMode(signal);
         LOGGER.info("The transition from {} to {} mode has begun", connectionMode, newMode);
-        if (isSameMode(connectionMode.get(), newMode)) {
+        if (isSameMode(connectionMode, newMode)) {
             saveMode(newMode, signal);
-        } else if (isTransitionAllowed(connectionMode.get(), newMode, signal.getSwitchType())) {
+        } else if (isTransitionAllowed(connectionMode, newMode, signal.getSwitchType())) {
             watcher.closeAllConnections();
             saveMode(newMode, signal);
-            connectionMode.set(newMode);
-            this.dataSource.set(dispatcher.get(connectionMode.get()));
+            updateConnectionMode(newMode);
+            this.dataSource.set(dispatcher.get(connectionMode));
             LOGGER.info("The application has been switched to mode:{}. Start processing incoming requests.", newMode);
         } else {
             LOGGER.warn("Switching from {} mode to {} mode is not possible. Check the signal in the topic {}, offset {}",
-                    connectionMode.get(), newMode, record.partition(), record.offset());
+                    connectionMode, newMode, record.partition(), record.offset());
         }
     }
 
@@ -336,9 +352,14 @@ public class SwitchoverDataSourceDelegator implements DataSource {
                 dispatcher.get(ConnectionMode.MAIN).getConnection();
     }
 
+    private void updateConnectionMode(ConnectionMode connectionMode) {
+        barrierService.setApplicationConnectionMode(connectionMode);
+        this.connectionMode = connectionMode;
+    }
+
     //For Testing
     public ConnectionMode getConnectionMode() {
-        return connectionMode.get();
+        return connectionMode;
     }
 
     //For Testing
@@ -410,15 +431,22 @@ public class SwitchoverDataSourceDelegator implements DataSource {
     }
 
     public void destroy() {
-        executor.shutdownNow();
-        watcher.close();
-        if (consumer != null) {
-            try {
-                consumer.close();
-                consumer = null;
-            } catch (Exception ex) {
-                LOGGER.warn("Could not close consumer.", ex);
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                LOGGER.warn("Executor did not terminate gracefully, forcing shutdown...");
+                executor.shutdownNow();
             }
+        } catch (InterruptedException e) {
+            LOGGER.warn("Interrupted while waiting for executor shutdown", e);
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
+        try {
+            watcher.close();
+        } catch (Exception ex) {
+            LOGGER.warn("Failed to close watcher", ex);
         }
     }
 }

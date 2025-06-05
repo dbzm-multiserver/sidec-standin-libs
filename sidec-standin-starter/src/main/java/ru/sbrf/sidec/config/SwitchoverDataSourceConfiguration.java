@@ -10,29 +10,37 @@ import ru.sbrf.sidec.db.NoOpDataSourceInvocationHandler;
 
 import javax.sql.DataSource;
 import java.lang.reflect.Proxy;
+import java.util.Objects;
 
 import static ru.sbrf.sidec.autoconfigure.SwitchoverAutoConfiguration.SWITCHOVER_ENABLED_CONFIG_PROPERTY;
 import static ru.sbrf.sidec.util.DataSourceUtil.createDataSource;
 
+/**
+ * Configuration properties for switchover data sources.
+ * Provides main and stand-in data sources with no-op fallback.
+ */
 @ConfigurationProperties(prefix = "sidec.datasource")
 @ConditionalOnProperty(name = SWITCHOVER_ENABLED_CONFIG_PROPERTY, havingValue = "true")
 public class SwitchoverDataSourceConfiguration {
     public static final Logger LOGGER = LoggerFactory.getLogger(SwitchoverDataSourceConfiguration.class);
 
     @NestedConfigurationProperty
-    private DataSourceProperties mainDataSourceProperties;
+    private DataSourceProperties main;
     @NestedConfigurationProperty
-    private DataSourceProperties standInDataSourceProperties;
+    private DataSourceProperties standIn;
 
     public DataSource mainDataSource(Object baseDataSource) {
-        return createDataSource((DataSource) baseDataSource, getMainDataSourceProperties());
+        Objects.requireNonNull(baseDataSource);
+        return createDataSource((DataSource) baseDataSource, getMain());
     }
 
-    public DataSource standinDataSource(Object baseDataSource) {
-        return createDataSource((DataSource) baseDataSource, getStandInDataSourceProperties());
+    public DataSource standInDataSource(Object baseDataSource) {
+        Objects.requireNonNull(baseDataSource);
+        return createDataSource((DataSource) baseDataSource, getStandIn());
     }
 
     public DataSource noOpDataSource(Object baseDataSource) {
+        Objects.requireNonNull(baseDataSource);
         return (DataSource) Proxy.newProxyInstance(
                 baseDataSource.getClass().getClassLoader(),
                 new Class[]{DataSource.class},
@@ -40,19 +48,19 @@ public class SwitchoverDataSourceConfiguration {
         );
     }
 
-    public DataSourceProperties getMainDataSourceProperties() {
-        return mainDataSourceProperties;
+    public DataSourceProperties getMain() {
+        return main;
     }
 
     public void setMain(DataSourceProperties mainDataSourceProperties) {
-        this.mainDataSourceProperties = mainDataSourceProperties;
+        this.main = mainDataSourceProperties;
     }
 
-    public DataSourceProperties getStandInDataSourceProperties() {
-        return standInDataSourceProperties;
+    public DataSourceProperties getStandIn() {
+        return standIn;
     }
 
     public void setStandIn(DataSourceProperties standInDataSourceProperties) {
-        this.standInDataSourceProperties = standInDataSourceProperties;
+        this.standIn = standInDataSourceProperties;
     }
 }
